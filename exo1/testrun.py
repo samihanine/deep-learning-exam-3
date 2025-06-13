@@ -114,6 +114,54 @@ def grad_norm(model):
 # ╰─────────────────────────────────────────────────────────────────────╯
 
 
+# ╭───────────────────────── Extra monitoring & report ─────────────────────────╮
+from matplotlib.backends.backend_pdf import PdfPages
+import tabulate, psutil, platform, gc
+
+def print_epoch_report(epoch, tloss, vloss, v_mae, gradn, lr):
+    table = [
+        ["epoch",           epoch                     ],
+        ["train MAE",       f"{tloss:.4f}"            ],
+        ["val MAE",         f"{vloss:.4f}"            ],
+        ["horizon-1 MAE",   f"{v_mae[1]:.4f}"         ],
+        ["horizon-6 MAE",   f"{v_mae[6]:.4f}"         ],
+        ["horizon-48 MAE",  f"{v_mae[48]:.4f}"        ],
+        ["grad-norm",       f"{gradn:.3f}"            ],
+        ["learning-rate",   f"{lr:.2e}"               ],
+        ["RAM used (GB)",   f"{psutil.Process().memory_info().rss/1e9: .2f}"],
+    ]
+    print("\n"+tabulate.tabulate(table, headers=["metric","value"], tablefmt="github"))
+
+def save_plots(losses_t, losses_v):
+    plt.figure(figsize=(6,4))
+    plt.plot(losses_t, label="train")
+    plt.plot([v for v in losses_v if not math.isnan(v)], label="val")
+    plt.xlabel("epoch"); plt.ylabel("MAE"); plt.legend(); plt.tight_layout()
+    plt.savefig("loss_curve.png", dpi=150)
+
+    # En­registrer aussi dans un PDF autonome
+    with PdfPages("loss_curve.pdf") as pdf:
+        pdf.savefig()             # page 1 : courbe de perte
+        plt.close()
+        # page 2 : config système + hyper-params
+        fig = plt.figure(figsize=(6,4)); plt.axis("off")
+        txt = (
+            f"Machine: {platform.platform()}\n"
+            f"Python : {platform.python_version()}\n"
+            f"PyTorch: {torch.__version__}\n"
+            f"Device : {DEVICE}\n\n"
+            f"HIST_LEN  = {HIST_LEN}\n"
+            f"HORIZON   = {HORIZON}\n"
+            f"BATCH     = {BATCH}\n"
+            f"EPOCHS    = {EPOCHS}\n"
+            f"LR        = {LR}\n"
+            f"WEIGHT_DECAY = {WEIGHT_DECAY}\n"
+        )
+        plt.text(0.0, 0.5, txt, va="center", ha="left", family="monospace", fontsize=9)
+        pdf.savefig(); plt.close()
+# ╰─────────────────────────────────────────────────────────────────────────────╯
+
+
 def main():
     # ───── Load data ───────────────────────────────────────────────────
     train_csv = pd.read_csv("price_train.csv")['Prices (EUR/MWh)'].values
@@ -221,6 +269,9 @@ def main():
                 v_mae  = horizon_mae(zscore_inv(v_pred,mu,sigma),
                                      zscore_inv(Y_val,mu,sigma))
                 
+                gradn = grad_norm(model)
+                print_epoch_report(epoch, tloss, vloss, v_mae, gradn, lr_hist[-1])
+                
                 if epoch % 10 == 0:  # Print détaillé tous les 10 epochs seulement
                     print(f"\nEpoch {epoch:>3d} | train {tloss:.4f} | val {vloss:.4f}")
                     print(f"  MAE horizons : {v_mae}")
@@ -260,11 +311,7 @@ def main():
     print(f"Validation MAE {mae:.3f} | RMSE {rmse:.3f}")
 
     # curves
-    plt.figure(figsize=(6,4))
-    plt.plot(losses_t, label="train")
-    plt.plot([v for v in losses_v if not math.isnan(v)], label="val")
-    plt.xlabel("epoch"); plt.ylabel("MAE"); plt.legend(); plt.tight_layout()
-    plt.savefig("loss_curve.png", dpi=150)
+    save_plots(losses_t, losses_v)
 
 if __name__ == "__main__":
     main()
