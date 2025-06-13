@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-# ──────────────────────────────────────────────────────────────────
-# testrun1_improved.py  ·  Deep-Learning Final Exam – Exercise 1
-# Version revue : split de validation plus réaliste, loss pondérée par horizon,
-# normalisation calculée sur la seule partie « train », monitoring détaillé.
-# ──────────────────────────────────────────────────────────────────
 import os, random, math, time, datetime
 import numpy as np
 import pandas as pd
@@ -22,7 +17,7 @@ if torch.cuda.is_available():
 elif torch.backends.mps.is_available():
     DEVICE, AMP_DEVICE = "mps", "mps"
 else:
-    DEVICE = AMP_DEVICE = "cpu"  # AMP désactivé sur CPU
+    DEVICE = AMP_DEVICE = "cpu"  # AMP disabled on CPU
 print(f"Using device: {DEVICE.upper()}")
 
 MIXED_PREC = AMP_DEVICE in {"cuda", "mps"}
@@ -36,10 +31,10 @@ if USE_SCALER:
 # ╭──────────────────────────── Hyper-paramètres ───────────────────────╮
 HIST_LEN = 193       # t … t‑192
 HORIZON = 48         # t+1 … t+48
-VAL_WEEKS = 4        # plage de validation temporelle
+VAL_WEEKS = 4        # temporal validation range
 BATCH = 1024
 EPOCHS = 60
-EARLY_STOP = 10      # sur validation pondérée
+EARLY_STOP = 10      # on weighted validation
 LR = 3e-4
 WEIGHT_DECAY = 1e-4
 VAL_FREQ = 2
@@ -60,7 +55,7 @@ if version.parse(torch.__version__) >= version.parse("2.0"):
 # ╭──────────────────────── Data utilities ─────────────────────────────╮
 
 def clean_data(series):
-    """Linear interpolation + ffill/bfill – comme conseillé en cours."""
+    """Linear interpolation + ffill/bfill – as recommended in class."""
     if pd.isna(series).sum():
         series = pd.Series(series).interpolate("linear").ffill().bfill()
     return series.values.astype(np.float32)
@@ -158,7 +153,7 @@ def save_plots(losses_t, losses_v):
 # ╰─────────────────────────────────────────────────────────────────────╯
 
 # ╭─────────────────────── Weighted‑horizon MAE loss ───────────────────╮
-WEIGHTS = torch.linspace(1.0, 0.2, HORIZON)  # décroissant – penalise court‑terme
+WEIGHTS = torch.linspace(1.0, 0.2, HORIZON)  # decreasing – penalizes short-term
 
 def weighted_l1(pred, target):
     w = WEIGHTS.to(pred.device).view(1, -1)
@@ -171,7 +166,7 @@ def main():
     series = pd.read_csv("price_train.csv")["Prices (EUR/MWh)"].values
     series = clean_data(series)
 
-    # 4 semaines de validation (≃ 1344 pas)
+    # 4 weeks of validation (≃ 1344 steps)
     val_steps = VAL_WEEKS * 7 * 48
     mu, sigma = series[: -val_steps].mean(), series[: -val_steps].std() or 1.0
     series_norm = (series - mu) / sigma
@@ -241,7 +236,7 @@ def main():
                     summ += criterion(model(xb), yb).item() * xb.size(0)
                 vloss = summ / len(dl_val.dataset)
 
-                # MAE dé‑scalée par horizons
+                # De-scaled MAE by horizons
                 v_pred = model(torch.from_numpy(X_val).to(DEVICE)).detach().cpu().numpy()
                 v_mae = horizon_mae((v_pred * sigma + mu), (Y_val * sigma + mu))
 
@@ -268,7 +263,7 @@ def main():
     pd.DataFrame(preds).to_csv("price_ans.csv", index=False, header=False)
     print("\nprice_ans.csv written.")
 
-    # quick self‑check sur la vraie MAE / RMSE
+    # quick self-check on the real MAE / RMSE
     val_pred = model(torch.from_numpy(X_val).to(DEVICE)).detach().cpu().numpy() * sigma + mu
     val_true = Y_val * sigma + mu
     mae = np.mean(np.abs(val_pred - val_true))
