@@ -172,3 +172,4 @@ wandb/
 # Notebooks temporaires
 .ipynb_checkpoints/
 *-checkpoint.ipynb
+generator_dataset/
