@@ -173,3 +173,4 @@ wandb/
 .ipynb_checkpoints/
 *-checkpoint.ipynb
 generator_dataset/
+class_result2.csv

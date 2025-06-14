@@ -128,11 +128,22 @@ val_loader   = DataLoader(val_ds,   batch_size=BATCH, shuffle=False,
                           num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
 
 # test dataset (no labels)
-class TestFolder(datasets.ImageFolder):
+class TestFolder(torch.utils.data.Dataset):
     def __init__(self, root, transform):
-        # fake class folder to reuse ImageFolder
-        super().__init__(root, transform)
-        self.imgs  = self.samples = [(p, 0) for p in sorted(Path(root).glob("*.png"))]
+        self.root = Path(root)
+        self.transform = transform
+        self.imgs = self.samples = [(p, 0) for p in sorted(self.root.glob("*.png"))]
+    
+    def __len__(self):
+        return len(self.samples)
+    
+    def __getitem__(self, index):
+        path, target = self.samples[index]
+        from PIL import Image
+        sample = Image.open(path).convert('RGB')
+        if self.transform is not None:
+            sample = self.transform(sample)
+        return sample, target
 
 test_ds = TestFolder(test_dir, val_tf)
 test_loader = DataLoader(test_ds, batch_size=BATCH, shuffle=False,
