@@ -174,3 +174,22 @@ wandb/
 *-checkpoint.ipynb
 generator_dataset/
 class_result2.csv
+
+# latex
+*.aux
+*.log
+*.out
+*.pdf
+*.tex
+*.toc
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.fls
+*.fdb_latexmk
+*.fls
+*.fdb_latexmk
+*.fls
+*.fdb_latexmk
+*.synctex.gz
