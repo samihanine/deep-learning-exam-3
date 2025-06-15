@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-RL_train1.py  ·  Deep-Learning Final Exam – Exercise 3 · Task 1
-Entraîne un Double-Dueling DQN avec replay prioritaire (n-step = 3)
-et sauvegarde les poids du « meilleur » modèle dans  report3.pth
-"""
-
 # ───────────────────── Imports & utils ─────────────────────
 import math, random, time, psutil, numpy as np, pandas as pd
 import torch, torch.nn as nn
@@ -13,7 +6,7 @@ from tabulate import tabulate
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-# ───────────── Device & AMP (mêmes règles que testrun3.py) ──────────
+# ───────────── Device & AMP ──────────
 if torch.cuda.is_available():
     DEVICE, AMP = "cuda", "cuda"
 elif torch.backends.mps.is_available():
@@ -28,7 +21,7 @@ if USE_SCALER:
     from torch.cuda.amp import GradScaler
 from torch import autocast
 
-# ───────────────────── Hyper-params (inchangés) ─────────────────────
+# ───────────────────── Hyperparameters ─────────────────────
 GAMMA, N_STEP, LR = 0.995, 3, 1e-4
 BATCH, EPOCHS = 512, 6_000
 TARGET_SYNC, BUFFER = 400, 100_000
@@ -43,7 +36,7 @@ seed_everything()
 if version.parse(torch.__version__) >= version.parse("2.0"):
     torch.set_float32_matmul_precision("high")
 
-# ───────────────────── BESS environment (identique) ─────────────────
+# ───────────────────── BESS environment ─────────────────
 class BESSEnv:
     E_BESS, P_UNIT = 10.0, 5.0
     SOC_MIN, SOC_MAX = .2, .9
@@ -79,7 +72,7 @@ def random_day():
     price=60+20*np.sin(2*np.pi*(t+10)/96)+np.random.normal(0,3,96)
     return load.clip(0).astype(np.float32), price.clip(0).astype(np.float32)
 
-# ─────────────────── Prioritised replay buffer ──────────────────────
+# ─────────────────── Prioritized replay buffer ──────────────────────
 class PriorReplay:
     def __init__(self, cap, alpha): self.cap=cap; self.a=alpha
     def __len__(self): return getattr(self,"n",0)
@@ -194,7 +187,7 @@ def train():
             if m>best_R: best_R,best_ep=m,ep; torch.save(online.state_dict(),"report3.pth")
             if ep-best_ep>=EARLY_STOP: break
 
-    # courbes
+    # curves
     plt.figure(); plt.plot(R_hist); plt.xlabel("episode"); plt.ylabel("reward"); plt.tight_layout()
     plt.savefig("rl_curve.png",dpi=150)
     with PdfPages("rl_curve.pdf") as pdf: pdf.savefig()

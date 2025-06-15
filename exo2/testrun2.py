@@ -1,34 +1,3 @@
-#!/usr/bin/env python3
-"""
-Deep-Learning Final Exam – Exercise 2
-Author : <votre nom>
-Date   : 2025-06-13
-
-Structure attendue du dossier :
-.
-├── generator_dataset
-│   ├── train
-│   │   ├── class_1
-│   │   ├── class_2
-│   │   ├── class_3
-│   │   └── class_4
-│   └── test
-│       ├── image_001.png
-│       └── … image_400.png
-└── testrun2.py   (ce fichier)
-
-Le script crée :
-  • report2.pth          – poids du meilleur modèle
-  • class_result2.csv    – prédictions sur le dossier « test »
-  • loss_acc_curve.png   – courbes perte / accuracies
-  • loss_acc_curve.pdf   – PDF commenté (métadonnées + courbes)
-
-Il suit la même philosophie que testrun1.py (exo 1) : 
-  – optimisation CosineAnnealingLR
-  – mix-precision (AMP) + torch.compile() si CUDA
-  – tableau de stats façon tabulate
-"""
-
 import os, time, math, random, datetime, platform, psutil, gc
 from pathlib import Path
 import numpy as np
@@ -61,14 +30,14 @@ if USE_SCALER:
 from torch import autocast
 # ╰─────────────────────────────────────────────────────────────────────╯
 
-# ╭────────────────────────── Hyper-paramètres ─────────────────────────╮
+# ╭────────────────────────── Hyperparameters ─────────────────────────╮
 IMG_SIZE   = 224
 BATCH      = 64
 EPOCHS     = 25
 EARLY_STOP = 5
 LR         = 3e-4
 WEIGHT_DECAY = 1e-4
-VAL_SPLIT  = 0.15          # pourcentage du train gardé en validation
+VAL_SPLIT  = 0.15         
 SEED       = 42
 NUM_WORKERS = 0 if DEVICE == "mps" else min(8, os.cpu_count())
 PIN_MEMORY  = DEVICE == "cuda"
@@ -111,7 +80,7 @@ train_dir = DATA_ROOT/"train"
 test_dir  = DATA_ROOT/"test"
 
 full_ds = datasets.ImageFolder(train_dir, transform=train_tf)
-class_names = full_ds.classes          # ➜ ['class_1', …, 'class_4']
+class_names = full_ds.classes          # → ['class_1', …, 'class_4']
 NUM_CLASSES = len(class_names)
 
 # split train/val
@@ -153,9 +122,9 @@ test_loader = DataLoader(test_ds, batch_size=BATCH, shuffle=False,
 # ╭──────────────────────────── Model ───────────────────────────────────╮
 def get_model(num_classes=NUM_CLASSES):
     model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-    # freeze early layers (optionnel)
+    # freeze early layers
     for name, param in model.named_parameters():
-        if "layer4" not in name:   # fine-tune only the last block + fc
+        if "layer4" not in name:
             param.requires_grad = False
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     return model
@@ -249,7 +218,7 @@ for epoch in tqdm(range(1, EPOCHS+1), unit="ep", desc="Training"):
 
 print(f"\nBest val acc: {best_acc*100:.2f}% at epoch {best_ep}")
 
-# ╭──────────────────────── Courbes (PNG + PDF) ────────────────────────╮
+# ╭──────────────────────── Curves (PNG + PDF) ────────────────────────╮
 plt.figure(figsize=(6,4))
 plt.plot(hist["tl"], label="train-loss")
 plt.plot([v for v in hist["vl"] if not math.isnan(v)], label="val-loss")
@@ -289,8 +258,8 @@ pd.DataFrame({"filename":file_names, "class":pred_labels}).to_csv(
         "class_result2.csv", index=False)
 print("class_result2.csv written.")
 
-# ╭──────────────────────── Fin & récapitulatif ────────────────────────╮
-print("\nDone – fichiers générés :")
+# ╭──────────────────────── End & summary ────────────────────────╮
+print("\nDone – files generated:")
 for f in ["report2.pth", "class_result2.csv", "loss_acc_curve.png", "loss_acc_curve.pdf"]:
     print(" •", f, f"({Path(f).stat().st_size/1e6:.2f} MB)" if Path(f).exists() else "(missing)")
 # ╰─────────────────────────────────────────────────────────────────────╯

@@ -1,11 +1,4 @@
-#!/usr/bin/env python3
-"""
-RL_train2.py  ·  Deep-Learning Final Exam – Exercise 3 · Task 2
-Entraîne un agent DDPG/TD3 (actions continues  a∈[-1,1])
-et sauvegarde les poids du meilleur acteur dans  report4.pth
-"""
-
-# ─────────── Imports & utilitaires communs ───────────
+# ─────────── Common imports & utilities ───────────
 import math, random, time, numpy as np, pandas as pd, psutil, collections
 import torch, torch.nn as nn, torch.nn.functional as F
 from packaging import version
@@ -23,7 +16,7 @@ if DEVICE == "cuda": torch.cuda.manual_seed_all(SEED)
 if version.parse(torch.__version__) >= version.parse("2.0"):
     torch.set_float32_matmul_precision("high")
 
-# ─────────── Environnement BESS identique ────────────
+# ─────────── Identical BESS environment ────────────
 class BESSEnv:
     E_BESS, P_UNIT = 10.0, 5.0
     SOC_MIN, SOC_MAX = .2, .9
@@ -58,7 +51,7 @@ def random_day():
     price=60+20*np.sin(2*np.pi*(t+10)/96)+np.random.normal(0,3,96)
     return load.clip(0).astype(np.float32), price.clip(0).astype(np.float32)
 
-# ─────────── Replay buffer (priorité optionnelle) ─────
+# ─────────── Replay buffer (optional priority) ─────
 class Replay:
     def __init__(self, cap): self.cap=cap; self.buf=collections.deque(maxlen=cap)
     def __len__(self): return len(self.buf)
@@ -72,14 +65,14 @@ class Replay:
                  torch.tensor(s2,dtype=torch.float32,device=DEVICE),
                  torch.tensor(d ,dtype=torch.float32,device=DEVICE) )
 
-# ─────────── Réseaux acteur & critic ──────────────────
+# ─────────── Actor & critic networks ──────────────────
 class Actor(nn.Module):
     def __init__(self, in_dim=4):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(in_dim,128), nn.SiLU(),
             nn.Linear(128,128),    nn.SiLU(),
-            nn.Linear(128,1),      nn.Tanh() )   # sortie ∈ [-1,1]
+            nn.Linear(128,1),      nn.Tanh() )   # output ∈ [-1,1]
     def forward(self,x): return self.net(x)
 
 class Critic(nn.Module):                 # Q(s,a)
@@ -92,10 +85,10 @@ class Critic(nn.Module):                 # Q(s,a)
     def forward(self,s,a):
         return self.net(torch.cat([s,a],1)).squeeze(1)
 
-# ─────────── Hyper-paramètres TD3 & entraînement ─────
+# ─────────── TD3 hyperparameters & training ─────
 GAMMA, TAU          = 0.995, 0.005
 LR_ACT, LR_CRIT     = 5e-5, 3e-4
-POLICY_FREQ, NOISE  = 2, 0.2          # retard + bruit target σ
+POLICY_FREQ, NOISE  = 2, 0.2          # delay + target noise σ
 EPISODES, STEPS_EP  = 6_000, 96
 BATCH, BUFFER       = 512, 200_000
 START_STEPS         = 5_000
@@ -104,7 +97,7 @@ EARLY_STOP, BEST_EP = 800, 0
 best_meanR          = -1e9
 R_hist              = []
 
-# ─────────── Instanciation réseaux & optimisateurs ───
+# ─────────── Network & optimizer instantiation ───
 actor  = Actor().to(DEVICE)
 actor_t= Actor().to(DEVICE); actor_t.load_state_dict(actor.state_dict())
 crit1  = Critic().to(DEVICE)
@@ -147,17 +140,17 @@ for ep in range(1, EPISODES+1):
                 Qt2 = crit2_t(S2, At)
                 Qt  = torch.min(Qt1, Qt2)
                 y   = R + GAMMA*(1-D)*Qt
-            # Critiques
+            # Critics
             for optC,crit in [(optC1,crit1),(optC2,crit2)]:
                 optC.zero_grad()
                 lossC = F.mse_loss(crit(S,A), y)
                 lossC.backward(); optC.step()
-            # Acteur (retardé)
+            # Actor
             if total_steps % POLICY_FREQ == 0:
                 optA.zero_grad()
                 lossA = -crit1(S, actor(S)).mean()
                 lossA.backward(); optA.step()
-                # Soft-update cibles
+                # Soft-update targets
                 with torch.no_grad():
                     for θ_t,θ in zip(actor_t.parameters(), actor.parameters()):
                         θ_t.data = θ_t.data*(1-TAU) + θ.data*TAU
@@ -173,7 +166,7 @@ for ep in range(1, EPISODES+1):
             torch.save(actor.state_dict(), "report4.pth")
         if ep - BEST_EP >= EARLY_STOP: break
 
-# Courbe d’apprentissage
+# Learning curve
 plt.figure(); plt.plot(R_hist); plt.xlabel("episode"); plt.ylabel("reward"); plt.tight_layout()
 plt.savefig("rl_curve2.png",dpi=150)
 with PdfPages("rl_curve2.pdf") as pdf: pdf.savefig()

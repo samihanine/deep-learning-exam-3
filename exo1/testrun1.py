@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os, random, math, time, datetime
 import numpy as np
 import pandas as pd
@@ -28,7 +27,7 @@ if USE_SCALER:
     from torch.cuda.amp import GradScaler
 # ╰─────────────────────────────────────────────────────────────────────╯
 
-# ╭──────────────────────────── Hyper-paramètres ───────────────────────╮
+# ╭──────────────────────────── Hyperparameters ───────────────────────╮
 HIST_LEN = 193       # t … t‑192
 HORIZON = 48         # t+1 … t+48
 VAL_WEEKS = 4        # temporal validation range
@@ -189,7 +188,7 @@ def main():
         num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY,
     )
 
-    # ───── Model & optimiser ─────────────────────────────────────────
+    # ───── Model & optimizer ─────────────────────────────────────────
     model = PriceCNN().to(DEVICE)
     if USE_COMPILE:
         model = torch.compile(model)
